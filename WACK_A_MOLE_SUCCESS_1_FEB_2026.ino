@@ -220,10 +220,44 @@ void setAllRelaysOff() {
  
    Serial.println("Press any button to restart");
  }
- 
- // ================= ADD MOLE =================
- void addMole() {
-   int ttl = startLitTime;
- } 
 
+ // ================= ADD MOLE =================
+void addMole() {
+  int ttl = startLitTime;
+ 
+  // Increase difficulty as score rises.
+  if (score >= Level500ms) {
+    ttl = 500;
+  } else if (score >= Level1000ms) {
+    ttl = 1000;
+  } else if (score >= Level2000ms) {
+    ttl = 2000;
+  }
+
+  // Build a list of currently unlit mole positions.
+  int available[5];
+  int availableCount = 0;
+  for (int i = 0; i < 5; i++) {
+    if (!moleActive[i]) {
+      available[availableCount++] = i;
+    }
+  }
+
+  // Nothing to activate.
+  if (availableCount == 0) {
+    return;
+  }
+
+  int pick = available[random(availableCount)];
+  moleActive[pick] = true;
+  moleEnd[pick] = millis() + ttl;
+  digitalWrite(relayPins[pick], LOW); // ACTIVE-LOW -> ON
+  molesLit++;
+
+  Serial.print("MOLE -> ");
+  Serial.print(colors[pick]);
+  Serial.print(" | TTL=");
+  Serial.println(ttl);
+}
+ 
 
