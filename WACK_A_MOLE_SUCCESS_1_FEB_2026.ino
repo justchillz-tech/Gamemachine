@@ -6,6 +6,11 @@
  * - added 5 second count down prep before gameplay and random light up before initial button push (05/02/2026)
  *****************************************************************************************/
 // ================= PIN DEFINITIONS =================
+ #define RELAY_RED     2
+ #define RELAY_GREEN   3
+ #define RELAY_BLUE    4
+ #define RELAY_YELLOW  5
+ #define RELAY_WHITE   6
  #define RELAY_WHITE   6
  
  // Buttons (INPUT_PULLUP)
@@ -31,10 +36,10 @@
  const int MoleLevel3  = 300;
  
  const int GAME_TIME_SEC = 30;
-+const int PREP_COUNTDOWN_SEC = 5;
-+const int BONUS_TIME_SEC = 15;
-+const unsigned long IDLE_PATTERN_MIN_MS = 150;
-+const unsigned long IDLE_PATTERN_MAX_MS = 600;
+const int PREP_COUNTDOWN_SEC = 5;
+const int BONUS_TIME_SEC = 15;
+const unsigned long IDLE_PATTERN_MIN_MS = 150;
+const unsigned long IDLE_PATTERN_MAX_MS = 600;
  const unsigned long DEBOUNCE_MS = 400;
  // ===================================================
  
@@ -47,21 +52,21 @@
  bool bonusUsed = false;
  bool gameRunning = false;
  int molesLit = 0;
-+int bonusTimeSec = 0;
+int bonusTimeSec = 0;
  
  unsigned long gameStartMillis;
  
  int lastButtonState[5];
-+unsigned long lastIdlePatternMillis = 0;
-+unsigned long idlePatternIntervalMs = 250;
+unsigned long lastIdlePatternMillis = 0;
+unsigned long idlePatternIntervalMs = 250;
  // ===============================================
  
-+void setAllRelaysOff() {
-+  for (int i = 0; i < 5; i++) {
-+    digitalWrite(relayPins[i], HIGH);
-+  }
-+}
-+
+void setAllRelaysOff() {
+  for (int i = 0; i < 5; i++) {
+    digitalWrite(relayPins[i], HIGH);
+  }
+}
+
  void setup() {
    Serial.begin(9600);
    randomSeed(analogRead(0));
@@ -88,17 +93,17 @@
  
  void loop() {
    if (!gameRunning) {
-+    // Idle glow pattern (random relays) until game starts
-+    if (millis() - lastIdlePatternMillis >= idlePatternIntervalMs) {
-+      int choice = random(7); // 0-4 single relay, 5 = all on, 6 = all off
-+      for (int i = 0; i < 5; i++) {
-+        bool on = (choice < 5) ? (i == choice) : (choice == 5);
-+        digitalWrite(relayPins[i], on ? LOW : HIGH);
-+      }
-+      lastIdlePatternMillis = millis();
-+      idlePatternIntervalMs = random(IDLE_PATTERN_MIN_MS, IDLE_PATTERN_MAX_MS + 1);
-+    }
-+
+    // Idle glow pattern (random relays) until game starts
+    if (millis() - lastIdlePatternMillis >= idlePatternIntervalMs) {
+      int choice = random(7); // 0-4 single relay, 5 = all on, 6 = all off
+      for (int i = 0; i < 5; i++) {
+        bool on = (choice < 5) ? (i == choice) : (choice == 5);
+        digitalWrite(relayPins[i], on ? LOW : HIGH);
+     }
+      lastIdlePatternMillis = millis();
+      idlePatternIntervalMs = random(IDLE_PATTERN_MIN_MS, IDLE_PATTERN_MAX_MS + 1);
+    }
+
      // Start game on ANY button HIT
      for (int i = 0; i < 5; i++) {
        int state = digitalRead(buttonPins[i]);
@@ -112,8 +117,7 @@
    }
  
    // ===== GAME TIMER =====
--  int timeLeft = GAME_TIME_SEC - int((millis() - gameStartMillis) / 1000);
-+  int timeLeft = (GAME_TIME_SEC + bonusTimeSec) - int((millis() - gameStartMillis) / 1000);
+  int timeLeft = (GAME_TIME_SEC + bonusTimeSec) - int((millis() - gameStartMillis) / 1000);
    if (timeLeft <= 0) {
      endGame();
      return;
@@ -146,7 +150,7 @@
  
            if (!bonusUsed && score >= 500) {
              bonusUsed = true;
-+            bonusTimeSec += BONUS_TIME_SEC;
+            bonusTimeSec += BONUS_TIME_SEC;
              Serial.println("BONUS +15 sec");
            }
          } else {
@@ -180,24 +184,23 @@
  
    score = 0;
    bonusUsed = false;
-+  bonusTimeSec = 0;
+  bonusTimeSec = 0;
    molesLit = 0;
    gameRunning = true;
  
    for (int i = 0; i < 5; i++) {
      moleActive[i] = false;
--    digitalWrite(relayPins[i], HIGH);
-+  }
-+  setAllRelaysOff();
-+
-+  // Prep countdown before gameplay
-+  Serial.print("GAME STARTING IN ");
-+  Serial.print(PREP_COUNTDOWN_SEC);
-+  Serial.println("...");
-+  for (int i = PREP_COUNTDOWN_SEC; i > 0; i--) {
-+    Serial.print(i);
-+    Serial.println("...");
-+    delay(1000);
+  }
+  setAllRelaysOff();
+
+  // Prep countdown before gameplay
+  Serial.print("GAME STARTING IN ");
+ Serial.print(PREP_COUNTDOWN_SEC);
+  Serial.println("...");
+  for (int i = PREP_COUNTDOWN_SEC; i > 0; i--) {
+    Serial.print(i);
+    Serial.println("...");
+    delay(1000);
    }
  
    gameStartMillis = millis();
@@ -222,6 +225,6 @@
  // ================= ADD MOLE =================
  void addMole() {
    int ttl = startLitTime;
- 
+ } 
 
 
