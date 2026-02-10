@@ -11,7 +11,6 @@
  #define RELAY_BLUE    4
  #define RELAY_YELLOW  5
  #define RELAY_WHITE   6
- #define RELAY_WHITE   6
  
  // Buttons (INPUT_PULLUP)
  #define BTN_RED       7
