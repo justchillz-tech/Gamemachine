@@ -59,7 +59,55 @@ int bonusTimeSec = 0;
 unsigned long lastIdlePatternMillis = 0;
 unsigned long idlePatternIntervalMs = 250;
  // ===============================================
- 
+
+void printScoreState(const char* eventTag) {
+  int timeLeft = gameRunning
+    ? ((GAME_TIME_SEC + bonusTimeSec) - int((millis() - gameStartMillis) / 1000))
+    : 0;
+
+  if (timeLeft < 0) timeLeft = 0;
+
+  Serial.print("[SCORE] ");
+  Serial.print(eventTag);
+  Serial.print(" | score=");
+  Serial.print(score);
+  Serial.print(" | active=");
+  Serial.print(molesLit);
+  Serial.print(" | bonus=");
+  Serial.print(bonusUsed ? "YES" : "NO");
+  Serial.print(" | timeLeft=");
+  Serial.println(timeLeft);
+}
+
+void runPrepCountdownLights() {
+  setAllRelaysOff();
+
+  for (int i = PREP_COUNTDOWN_SEC; i > 0; i--) {
+    int idx = PREP_COUNTDOWN_SEC - i;
+
+    setAllRelaysOff();
+    digitalWrite(relayPins[idx], LOW);
+
+    Serial.print("COUNTDOWN ");
+    Serial.print(i);
+    Serial.print(" -> ");
+    Serial.println(colors[idx]);
+
+    delay(700);
+    digitalWrite(relayPins[idx], HIGH);
+    delay(300);
+  }
+
+  // Flash all relays before gameplay starts
+  for (int flash = 0; flash < 2; flash++) {
+    for (int i = 0; i < 5; i++) {
+      digitalWrite(relayPins[i], LOW);
+    }
+    delay(120);
+    setAllRelaysOff();
+    delay(120);
+  }
+}
 void setAllRelaysOff() {
   for (int i = 0; i < 5; i++) {
     digitalWrite(relayPins[i], HIGH);
@@ -141,16 +189,18 @@ void setAllRelaysOff() {
  
            Serial.print("HIT → ");
            Serial.println(colors[i]);
+           printScoreState("hit");
  
-           addMole();
+           addMole(i);
  
-           if (score >= MoleLevel2 && molesLit < 2) addMole();
-           if (score >= MoleLevel3 && molesLit < 3) addMole();
+           if (score >= MoleLevel2 && molesLit < 2) addMole(-1);
+           if (score >= MoleLevel3 && molesLit < 3) addMole(-1);
  
            if (!bonusUsed && score >= 500) {
              bonusUsed = true;
             bonusTimeSec += BONUS_TIME_SEC;
              Serial.println("BONUS +15 sec");
+            printScoreState("bonus_awarded");
            }
          } else {
            // MISS
@@ -159,6 +209,7 @@ void setAllRelaysOff() {
  
            Serial.print("MISS → ");
            Serial.println(colors[i]);
+           printScoreState("miss");
          }
        }
      }
@@ -172,7 +223,9 @@ void setAllRelaysOff() {
        moleActive[i] = false;
        digitalWrite(relayPins[i], HIGH);
        molesLit--;
-       addMole();
+       Serial.print("TIMEOUT -> ");
+       Serial.println(colors[i]);
+       addMole(i);
      }
    }
  }
@@ -194,16 +247,13 @@ void setAllRelaysOff() {
 
   // Prep countdown before gameplay
   Serial.print("GAME STARTING IN ");
- Serial.print(PREP_COUNTDOWN_SEC);
+  Serial.print(PREP_COUNTDOWN_SEC);
   Serial.println("...");
-  for (int i = PREP_COUNTDOWN_SEC; i > 0; i--) {
-    Serial.print(i);
-    Serial.println("...");
-    delay(1000);
-   }
- 
-   gameStartMillis = millis();
-   addMole();
+  runPrepCountdownLights();
+
+  gameStartMillis = millis();
+  addMole(-1);
+  printScoreState("game_start");
  }
  
  // ================= END GAME =================
@@ -217,15 +267,14 @@ void setAllRelaysOff() {
      moleActive[i] = false;
      digitalWrite(relayPins[i], HIGH);
    }
- 
+    printScoreState("game_over");
    Serial.println("Press any button to restart");
  }
 
  // ================= ADD MOLE =================
-void addMole() {
+void addMole(int avoidIndex) {
   int ttl = startLitTime;
- 
-  // Increase difficulty as score rises.
+
   if (score >= Level500ms) {
     ttl = 500;
   } else if (score >= Level1000ms) {
@@ -234,30 +283,35 @@ void addMole() {
     ttl = 2000;
   }
 
-  // Build a list of currently unlit mole positions.
   int available[5];
   int availableCount = 0;
+
   for (int i = 0; i < 5; i++) {
-    if (!moleActive[i]) {
+    if (!moleActive[i] && i != avoidIndex) {
       available[availableCount++] = i;
     }
   }
 
-  // Nothing to activate.
-  if (availableCount == 0) {
-    return;
+  if (availableCount == 0 &&
+      avoidIndex >= 0 &&
+      avoidIndex < 5 &&
+      !moleActive[avoidIndex]) {
+    available[availableCount++] = avoidIndex;
   }
+
+  if (availableCount == 0) return;
 
   int pick = available[random(availableCount)];
   moleActive[pick] = true;
   moleEnd[pick] = millis() + ttl;
-  digitalWrite(relayPins[pick], LOW); // ACTIVE-LOW -> ON
+  digitalWrite(relayPins[pick], LOW);
   molesLit++;
 
   Serial.print("MOLE -> ");
   Serial.print(colors[pick]);
   Serial.print(" | TTL=");
-  Serial.println(ttl);
+  Serial.print(ttl);
+  Serial.print("ms | lit=");
+  Serial.println(molesLit);
 }
- 
 
